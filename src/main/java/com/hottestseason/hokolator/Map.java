@@ -1,6 +1,7 @@
 package com.hottestseason.hokolator;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -102,11 +103,13 @@ public class Map {
 		}
 	}
 
-	public class Street implements Comparable<Street> {
+	public class Street extends Agent implements Comparable<Street> {
 		public final int id;
 		public int width;
 		private final UUID uuid = UUID.randomUUID();
 		private final Set<Pedestrian> pedestrians = new HashSet<>();
+		private final Set<Pedestrian> mutableNeighborPedestrians = new HashSet<>();
+		public final Set<Pedestrian> neighborPedestrians = Collections.unmodifiableSet(mutableNeighborPedestrians);
 
 		public Street(int id, int width) {
 			this.id = id;
@@ -121,6 +124,15 @@ public class Map {
 		@Override
 		public int compareTo(Street street) {
 			return uuid.compareTo(street.uuid);
+		}
+
+		@Override
+		void update(double time) throws InterruptedException {
+			mutableNeighborPedestrians.clear();
+			mutableNeighborPedestrians.addAll(pedestrians);
+			for (Street street : getNeighborStreets()) {
+				mutableNeighborPedestrians.addAll(street.pedestrians);
+			}
 		}
 
 		public Intersection getSource() {
@@ -143,6 +155,12 @@ public class Map {
 			} else {
 				return null;
 			}
+		}
+
+		public Set<Street> getNeighborStreets() {
+			Set<Street> streets = new HashSet<>(getSource().getStreets());
+			streets.addAll(getTarget().getStreets());
+			return streets;
 		}
 
 		public boolean canEnter() {

@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Pedestrian extends Agent {
 	public final PedestriansSimulator simulator;
@@ -44,10 +46,30 @@ public class Pedestrian extends Agent {
 	}
 
 	@Override
-	public void update(double time) {
+	public void update(double time) throws InterruptedException {
 		speed = calcSpeed();
 		nextPlace = calcNextPlace(time);
-		linkLeftTime = calcLinkLeftTime();
+		if (place.street != nextPlace.street) {
+			linkLeftTime = calcLinkLeftTime();
+			Set<Pedestrian> neighborPedestrians = calcNeighborPedestrians();
+			finished("nextPlaceCalculated");
+			barrier("nextPlaceCalculated", neighborPedestrians);
+			Set<Pedestrian> conflictingPedestrians = calcConflictingPedestrians(neighborPedestrians);
+			ordered("conflictingPedestrians", conflictingPedestrians, new Comparator<Agent>() {
+				@Override
+				public int compare(Agent a1, Agent a2) {
+					return ((Pedestrian) a1).compareUsingLinkLeftTime((Pedestrian) a2);
+				}
+			}, new Runnable() {
+				@Override
+				public void run() {
+					moveTo(nextPlace);
+				}
+			});
+		} else {
+			finished("nextPlaceCalculated");
+			moveTo(nextPlace);
+		}
 		this.time += time;
 	}
 
@@ -117,13 +139,33 @@ public class Pedestrian extends Agent {
 		return moveTo(nextPlace);
 	}
 
-	private double calcLinkLeftTime() {
-		return (place.street.getLength() - place.position) / speed;
-	}
-
 	public int compareUsingLinkLeftTime(Pedestrian pedestrian) {
 		int result = Double.compare(linkLeftTime, pedestrian.linkLeftTime);
 		if (result == 0) result = Integer.compare(id, pedestrian.id);
 		return result;
+	}
+
+	private boolean willEnterOrExit(Map.Street street) {
+		return (place.street != nextPlace.street) && (place.street == street || nextPlace.street == street);
+	}
+
+	private double calcLinkLeftTime() {
+		return (place.street.getLength() - place.position) / speed;
+	}
+
+	private Set<Pedestrian> calcNeighborPedestrians() {
+		Set<Pedestrian> neighborPedestrians = new HashSet<>(place.street.neighborPedestrians);
+		neighborPedestrians.addAll(nextPlace.street.neighborPedestrians);
+		return neighborPedestrians;
+	}
+
+	private Set<Pedestrian> calcConflictingPedestrians(Set<Pedestrian> neighborPedestrians) {
+		Set<Pedestrian>  conflictingPedestrians = new HashSet<>();
+		for (Pedestrian pedestrian : neighborPedestrians) {
+			if (pedestrian.willEnterOrExit(place.street) || pedestrian.willEnterOrExit(nextPlace.street)) {
+				conflictingPedestrians.add(pedestrian);
+			}
+		}
+		return conflictingPedestrians;
 	}
 }

@@ -2,9 +2,7 @@ package com.hottestseason.hokolator;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -81,17 +79,8 @@ public class PedestriansSimulator {
 		double time = 0;
 		while (time <= timeLimit) {
 			time += 1.0;
-
+			AgentsScheduler.update(map.getStreets(), 1.0);
 			AgentsScheduler.update(pedestrians, 1.0);
-			List<Pedestrian> sortedPedestrians =  Pedestrian.sort(pedestrians, new Comparator<Pedestrian>() {
-				@Override
-				public int compare(Pedestrian p1, Pedestrian p2) {
-					return p1.compareUsingLinkLeftTime(p2);
-				}
-			});
-			for (Pedestrian pedestrian : sortedPedestrians) {
-				pedestrian.moveToNextPlace();
-			}
 			removeFinishedPedestrians();
 
 			logger.info("time: " + time + " ----------");

@@ -51,19 +51,23 @@ public class Pedestrian extends Agent {
 		nextPlace = calcNextPlace(time);
 		if (place.street != nextPlace.street) {
 			linkLeftTime = calcLinkLeftTime();
-			Set<Pedestrian> neighborPedestrians = calcNeighborPedestrians();
+			final Set<Pedestrian> neighborPedestrians = calcNeighborPedestrians();
 			finished("nextPlaceCalculated");
-			barrier("nextPlaceCalculated", neighborPedestrians);
-			Set<Pedestrian> conflictingPedestrians = calcConflictingPedestrians(neighborPedestrians);
-			ordered("conflictingPedestrians", conflictingPedestrians, new Comparator<Agent>() {
-				@Override
-				public int compare(Agent a1, Agent a2) {
-					return ((Pedestrian) a1).compareUsingLinkLeftTime((Pedestrian) a2);
-				}
-			}, new Runnable() {
+			barrier("nextPlaceCalculated", neighborPedestrians, new Runnable() {
 				@Override
 				public void run() {
-					moveTo(nextPlace);
+					Set<Pedestrian> conflictingPedestrians = calcConflictingPedestrians(neighborPedestrians);
+					ordered("conflictingPedestrians", conflictingPedestrians, new Comparator<Agent>() {
+						@Override
+						public int compare(Agent a1, Agent a2) {
+							return ((Pedestrian) a1).compareUsingLinkLeftTime((Pedestrian) a2);
+						}
+					}, new Runnable() {
+						@Override
+						public void run() {
+							moveTo(nextPlace);
+						}
+					});
 				}
 			});
 		} else {

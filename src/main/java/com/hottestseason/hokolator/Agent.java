@@ -10,11 +10,11 @@ public abstract class Agent {
 		AgentsScheduler.finished(tag, this);
 	}
 
-	void barrier(String tag, Set<? extends Agent> agents) throws InterruptedException {
-		AgentsScheduler.barrier(tag, this, agents);
+	void barrier(String tag, Set<? extends Agent> agents, Runnable runnable) {
+		AgentsScheduler.barrier(tag, this, agents, runnable);
 	}
 
-	void ordered(String tag, Set<? extends Agent> agents, Comparator<Agent> comparator, Runnable runnable) throws InterruptedException {
+	void ordered(String tag, Set<? extends Agent> agents, Comparator<Agent> comparator, Runnable runnable) {
 		AgentsScheduler.ordered(tag, this, agents, comparator, runnable);
 	}
 }

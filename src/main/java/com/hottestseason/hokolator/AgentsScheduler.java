@@ -1,17 +1,15 @@
 package com.hottestseason.hokolator;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -22,12 +20,12 @@ public class AgentsScheduler {
 
 	private final Map<String, BarrierScheduler> barrierSchedulerMap = new HashMap<>();
 	private final Map<String, OrderedScheduler> orderedSchedulerMap = new HashMap<>();
+	private static final Queue<Runnable> newlyCreatedJobs = new ConcurrentLinkedQueue<>();
 
 	public static void update(Set<? extends Agent> agents, final double time) throws InterruptedException {
 		AgentsScheduler.clear();
-		List<Thread> threads = new ArrayList<>();
 		for (final Agent agent : agents) {
-			Thread thread = new Thread(new Runnable() {
+			newlyCreatedJobs.add(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -37,11 +35,10 @@ public class AgentsScheduler {
 					}
 				}
 			});
-			threads.add(thread);
 		}
-		for (Thread thread : threads) thread.start();
-		for (Thread thread : threads) thread.join();
-		System.gc();
+		while (!newlyCreatedJobs.isEmpty()) {
+			executeWithThreadPool(newlyCreatedJobs);;
+		}
 	}
 
 	public static void executeWithThreadPool(Queue<Runnable> tasks) throws InterruptedException {
@@ -63,11 +60,11 @@ public class AgentsScheduler {
 		instance.getOrRegisterWaitersScheduler(tag).finished(agent);
 	}
 
-	public static void barrier(String tag, Agent waiter, Set<? extends Agent> agents) throws InterruptedException {
-		instance.getOrRegisterWaitersScheduler(tag).barrier(waiter, agents);
+	public static void barrier(String tag, Agent waiter, Set<? extends Agent> agents, Runnable block) {
+		instance.getOrRegisterWaitersScheduler(tag).barrier(waiter, agents, block);
 	}
 
-	public static void ordered(String tag, Agent agent, Set<? extends Agent> agents, Comparator<Agent> comparator, Runnable runnable) throws InterruptedException {
+	public static void ordered(String tag, Agent agent, Set<? extends Agent> agents, Comparator<Agent> comparator, Runnable runnable) {
 		instance.getOrRegisterSequentialScheduler(tag).ordered(agent, agents, comparator, runnable);
 	}
 
@@ -90,37 +87,41 @@ public class AgentsScheduler {
 	}
 
 	class BarrierScheduler {
-		private final Map<Agent, CountDownLatch> countDownLatches = new ConcurrentHashMap<>();
 		private final Map<Agent, Boolean> finishedFlags = new HashMap<>();
 		private final Map<Agent, Set<Agent>> waitersMap = new HashMap<>();
+		private final Map<Agent, Set<? extends Agent>> waitingsMap = new HashMap<>();
+		private final Map<Agent, Runnable> blockMap = new HashMap<>();
 
 		private synchronized void finished(Agent agent) {
 			finishedFlags.put(agent, true);
 			if (waitersMap.containsKey(agent)) {
 				for (Agent waiter : waitersMap.get(agent)) {
-					countDownLatches.get(waiter).countDown();
+					waitingsMap.get(waiter).remove(agent);
+					if (waitingsMap.get(waiter).isEmpty()) {
+						newlyCreatedJobs.add(blockMap.get(waiter));
+					}
 				}
 			}
 		}
 
-		private void barrier(Agent waiter, Set<? extends Agent> agents) throws InterruptedException {
-			if (agents.size() == 1 && agents.contains(waiter)) return;
-			int latchSize = agents.size();
-			synchronized (this) {
-				for (Agent other : agents) {
-					if (finishedFlags.containsKey(other) && finishedFlags.get(other)) {
-						latchSize--;
-					} else {
-						if (!waitersMap.containsKey(other)) {
-							waitersMap.put(other, new HashSet<Agent>());
-						}
-						waitersMap.get(other).add(waiter);
+		private synchronized void barrier(Agent waiter, Set<? extends Agent> others, Runnable block) {
+			Set<? extends Agent> waitings = new HashSet<>(others);
+			for (Agent other : others) {
+				if (finishedFlags.containsKey(other)) {
+					waitings.remove(other);
+				} else {
+					if (!waitersMap.containsKey(other)) {
+						waitersMap.put(other, new HashSet<Agent>());
 					}
+					waitersMap.get(other).add(waiter);
 				}
-				if (latchSize == 0) return;
-				countDownLatches.put(waiter, new CountDownLatch(latchSize));
 			}
-			countDownLatches.get(waiter).await();
+			if (waitings.isEmpty()) {
+				newlyCreatedJobs.add(block);
+			} else {
+				waitingsMap.put(waiter, waitings);
+				blockMap.put(waiter, block);
+			}
 		}
 	}
 
@@ -133,41 +134,50 @@ public class AgentsScheduler {
 			this.tag = tag;
 		}
 
-		private void ordered(Agent agent, Set<? extends Agent> agents, Comparator<Agent> comparator, Runnable runnable) throws InterruptedException {
+		private void ordered(final Agent agent, Set<? extends Agent> agents, Comparator<Agent> comparator, Runnable runnable) {
 			if (agents.size() == 1 && agents.contains(agent)) {
-				runnable.run();
+				newlyCreatedJobs.add(runnable);
 				return;
 			}
-
 			runnableMap.put(agent, runnable);
-			SortedSet<Agent> sorted = new ConcurrentSkipListSet<>(comparator);
+			final SortedSet<Agent> sorted = new ConcurrentSkipListSet<>(comparator);
 			sorted.addAll(agents);
 			barrierMap.put(agent, sorted);
-
 			AgentsScheduler.finished(tag, agent);
-			recursiveBarrier(agent);
-
-			if (sorted.first() == agent) {
-				for (Agent _agent : sorted) {
-					runnableMap.get(_agent).run();
+			recursiveBarrier(agent, new Runnable() {
+				@Override
+				public void run() {
+					if (sorted.first() == agent) {
+						for (Agent _agent : sorted) {
+							runnableMap.get(_agent).run();
+						}
+					}
 				}
-			}
+			});
 		}
 
-		private void recursiveBarrier(Agent agent) throws InterruptedException {
-			SortedSet<Agent> agents = barrierMap.get(agent);
-			AgentsScheduler.barrier(tag, agent, agents);
-			int beforeSize, afterSize;
-			synchronized (agents) {
-				beforeSize = agents.size();
-				SortedSet<Agent> _agents = new ConcurrentSkipListSet<>(agents.comparator());
-				for (Agent waiting : agents) {
-					_agents.addAll(barrierMap.get(waiting));
+		private void recursiveBarrier(final Agent agent, final Runnable runnable) {
+			final SortedSet<Agent> agents = barrierMap.get(agent);
+			AgentsScheduler.barrier(tag, agent, agents, new Runnable() {
+				@Override
+				public void run() {
+					int beforeSize, afterSize;
+					synchronized (agents) {
+						beforeSize = agents.size();
+						SortedSet<Agent> _agents = new ConcurrentSkipListSet<>(agents.comparator());
+						for (Agent waiting : agents) {
+							_agents.addAll(barrierMap.get(waiting));
+						}
+						agents.addAll(_agents);
+						afterSize = agents.size();
+					}
+					if (beforeSize == afterSize) {
+						runnable.run();
+					} else {
+						recursiveBarrier(agent, runnable);
+					}
 				}
-				agents.addAll(_agents);
-				afterSize = agents.size();
-			}
-			if (beforeSize != afterSize) recursiveBarrier(agent);
+			});
 		}
 	}
 }

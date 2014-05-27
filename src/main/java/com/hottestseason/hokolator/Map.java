@@ -147,11 +147,7 @@ public class Map {
 
 		public boolean canEnter() {
 			synchronized (pedestrians) {
-				int notGoaledSize = 0;
-				for (Pedestrian pedestrian : pedestrians) {
-					if (!pedestrian.isAtGoal()) notGoaledSize++;
-				}
-				return notGoaledSize < width;
+				return pedestrians.size() < width;
 			}
 		}
 
@@ -169,7 +165,7 @@ public class Map {
 				synchronized (links[0].pedestrians) {
 					synchronized (links[1].pedestrians) {
 						if (canEnter()) {
-							pedestrian.getPlace().street.pedestrians.remove(pedestrian);
+							pedestrian.getPlace().street.remove(pedestrian);
 							pedestrians.add(pedestrian);
 							return true;
 						} else {
@@ -177,6 +173,12 @@ public class Map {
 						}
 					}
 				}
+			}
+		}
+
+		public boolean remove(Pedestrian pedestrian) {
+			synchronized (pedestrians) {
+				return pedestrians.remove(pedestrian);
 			}
 		}
 	}

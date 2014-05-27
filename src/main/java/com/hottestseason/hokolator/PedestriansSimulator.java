@@ -1,10 +1,7 @@
 package com.hottestseason.hokolator;
 
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -14,19 +11,23 @@ import java.util.Set;
 import javax.vecmath.Point2d;
 
 import org.jgrapht.EdgeFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.hottestseason.hokolator.Map.Intersection;
 import com.hottestseason.hokolator.Map.Street;
 import com.hottestseason.hokolator.graph.GeometricGraph;
 
 public class PedestriansSimulator {
+	public final Logger logger = LoggerFactory.getLogger(getClass());
 	public final Map map;
 	public final Set<Pedestrian> pedestrians = new HashSet<>();
 	public final double timeLimit;
+	private Set<Pedestrian> finishedPedestrians = new HashSet<>();
 
 	public static void main(String[] args) throws InterruptedException, FileNotFoundException, IOException {
 		final Properties properties = new Properties();
-		properties.load(new FileInputStream(args[0]));
+		properties.load(ClassLoader.getSystemResourceAsStream("simulator.properties"));
 		final int row = Integer.valueOf(properties.getProperty("row"));
 		final int column = Integer.valueOf(properties.getProperty("column"));
 		final int linkLength = Integer.valueOf(properties.getProperty("linkLength"));
@@ -80,23 +81,41 @@ public class PedestriansSimulator {
 		double time = 0;
 		while (time <= timeLimit) {
 			time += 1.0;
+
 			AgentsScheduler.update(pedestrians, 1.0);
-			int numOfFinishedPedestrians = 0;
-			for (Pedestrian pedestrian : pedestrians) {
-				if (pedestrian.isAtGoal()) numOfFinishedPedestrians++;
+			List<Pedestrian> sortedPedestrians =  Pedestrian.sort(pedestrians, new Comparator<Pedestrian>() {
+				@Override
+				public int compare(Pedestrian p1, Pedestrian p2) {
+					return p1.compareUsingLinkLeftTime(p2);
+				}
+			});
+			for (Pedestrian pedestrian : sortedPedestrians) {
+				pedestrian.moveToNextPlace();
 			}
-			System.out.println(time + ": " + numOfFinishedPedestrians);
-			if (numOfFinishedPedestrians == pedestrians.size()) break;
+			removeFinishedPedestrians();
+
+			logger.info("time: " + time + " ----------");
+			if (logger.isDebugEnabled()) debugPedestrians();
+			logger.info("unfinished: " + pedestrians.size());
+			if (pedestrians.isEmpty()) break;
 		}
-		List<Pedestrian> sortedPedestrians = new ArrayList<>(pedestrians);
-		Collections.sort(sortedPedestrians, new Comparator<Pedestrian>() {
-			@Override
-			public int compare(Pedestrian p1, Pedestrian p2) {
-				return Integer.compare(p1.id, p2.id);
+		logger.info("All finished ----------");
+		for (Pedestrian pedestrian : Pedestrian.sort(finishedPedestrians)) logger.info(pedestrian.id + ": " + pedestrian.getTime());
+	}
+
+	private void debugPedestrians() {
+		for (Pedestrian pedestrian : Pedestrian.sort(pedestrians)) logger.debug(pedestrian.toString());
+	}
+
+	private void removeFinishedPedestrians() {
+		Set<Pedestrian> finishedPedestrians = new HashSet<>();
+		for (Pedestrian pedestrian : pedestrians) {
+			if (pedestrian.isAtGoal()) {
+				finishedPedestrians.add(pedestrian);
+				pedestrian.moveTo(null);
 			}
-		});;
-		for (Pedestrian pedestrian : sortedPedestrians) {
-			System.out.println(pedestrian.id + ": " + pedestrian.getTime());
 		}
+		pedestrians.removeAll(finishedPedestrians);
+		this.finishedPedestrians.addAll(finishedPedestrians);
 	}
 }

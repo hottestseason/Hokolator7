@@ -1,8 +1,7 @@
 package com.hottestseason.hokolator;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -12,7 +11,7 @@ public class AgentsScheduler {
 	private static final int awaitTime = 60 * 60;
 
 	public static void update(Set<? extends Agent> agents, final double time) throws InterruptedException {
-		List<Runnable> runnables = new ArrayList<>();
+		Queue<Runnable> runnables = new LinkedList<>();
 		for (final Agent agent : agents) {
 			runnables.add(new Runnable() {
 				@Override
@@ -28,10 +27,10 @@ public class AgentsScheduler {
 		executeWithThreadPool(runnables);
 	}
 
-	public static void executeWithThreadPool(Collection<Runnable> runnables) throws InterruptedException {
+	public static void executeWithThreadPool(Queue<Runnable> tasks) throws InterruptedException {
 		ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-		for (Runnable runnable : runnables) {
-			executor.execute(runnable);
+		while (!tasks.isEmpty()) {
+			executor.execute(tasks.poll());
 		}
 		executor.shutdown();
 		if (!executor.awaitTermination(awaitTime, TimeUnit.SECONDS)) throw new RuntimeException("Cannot finished in " + awaitTime);

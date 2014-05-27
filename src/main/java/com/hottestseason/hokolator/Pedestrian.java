@@ -1,5 +1,9 @@
 package com.hottestseason.hokolator;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class Pedestrian extends Agent {
@@ -10,6 +14,22 @@ public class Pedestrian extends Agent {
 	private double speed;
 	private Place place;
 	private Place nextPlace;
+	private double linkLeftTime;
+
+	public static List<Pedestrian> sort(Collection<Pedestrian> pedestrians, Comparator<Pedestrian> comparator) {
+		List<Pedestrian> sortedPedestrians = new ArrayList<>(pedestrians);
+		Collections.sort(sortedPedestrians, comparator);
+		return sortedPedestrians;
+	}
+
+	public static List<Pedestrian> sort(Collection<Pedestrian> pedestrians) {
+		return sort(pedestrians, new Comparator<Pedestrian>() {
+			@Override
+			public int compare(Pedestrian p1, Pedestrian p2) {
+				return Integer.compare(p1.id, p2.id);
+			}
+		});
+	}
 
 	public Pedestrian(PedestriansSimulator simulator, int id, Map.Intersection goal, double speed) {
 		this.simulator = simulator;
@@ -19,13 +39,16 @@ public class Pedestrian extends Agent {
 	}
 
 	@Override
+	public String toString() {
+		return "id: " + id + ", place: " + place + ", speed: " + speed;
+	}
+
+	@Override
 	public void update(double time) {
-		if (!isAtGoal()) {
-			speed = calcSpeed();
-			nextPlace = calcNextPlace(time);
-			moveTo(nextPlace);
-			this.time += time;
-		}
+		speed = calcSpeed();
+		nextPlace = calcNextPlace(time);
+		linkLeftTime = calcLinkLeftTime();
+		this.time += time;
 	}
 
 	public double getTime() {
@@ -70,6 +93,8 @@ public class Pedestrian extends Agent {
 			} else {
 				return false;
 			}
+		} if (nextPlace == null) {
+			return place.street.remove(this);
 		} else {
 			if (place.street == nextPlace.street) {
 				place = nextPlace;
@@ -86,5 +111,19 @@ public class Pedestrian extends Agent {
 				}
 			}
 		}
+	}
+
+	public boolean moveToNextPlace() {
+		return moveTo(nextPlace);
+	}
+
+	private double calcLinkLeftTime() {
+		return (place.street.getLength() - place.position) / speed;
+	}
+
+	public int compareUsingLinkLeftTime(Pedestrian pedestrian) {
+		int result = Double.compare(linkLeftTime, pedestrian.linkLeftTime);
+		if (result == 0) result = Integer.compare(id, pedestrian.id);
+		return result;
 	}
 }

@@ -11,15 +11,15 @@ public class Counter {
 		value = v;
 	}
 
-	public void add(int v) {
+	public synchronized void add(int v) {
 		set(value + v);
 	}
 
-	public void increment() {
+	public synchronized void increment() {
 		add(1);
 	}
 
-	public void decrement() {
+	public synchronized void decrement() {
 		add(-1);
 	}
 }

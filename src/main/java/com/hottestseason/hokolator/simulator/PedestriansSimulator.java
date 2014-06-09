@@ -12,6 +12,7 @@ import org.jgrapht.EdgeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.hottestseason.hokolator.BarrierAllPedestrian;
 import com.hottestseason.hokolator.Map;
 import com.hottestseason.hokolator.Map.Intersection;
 import com.hottestseason.hokolator.Map.Street;
@@ -81,6 +82,8 @@ abstract public class PedestriansSimulator {
 		switch (type) {
 		case "parallel":
 			return new ParallelPedestriansSimulator(map);
+		case "barrierAll":
+			return new BarrierAllPedestriansSimulator(map);
 		default:
 			return null;
 		}
@@ -90,6 +93,8 @@ abstract public class PedestriansSimulator {
 		switch (type) {
 		case "parallel":
 			return new ParallelPedestrian(simulator, id, goal, speed);
+		case "barrierAll":
+			return new BarrierAllPedestrian(simulator, id, goal, speed);
 		default:
 			return null;
 		}

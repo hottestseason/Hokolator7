@@ -19,6 +19,7 @@ abstract public class Pedestrian extends Item {
 	protected double speed;
 	protected Place place;
 	protected Place nextPlace;
+	protected double linkLeftTime;
 
 	public static List<Pedestrian> sort(Collection<Pedestrian> pedestrians, Comparator<Pedestrian> comparator) {
 		List<Pedestrian> sortedPedestrians = new ArrayList<>(pedestrians);
@@ -33,6 +34,15 @@ abstract public class Pedestrian extends Item {
 				return Integer.compare(p1.id, p2.id);
 			}
 		});
+	}
+
+	public static Comparator<Pedestrian> linkLeftTimeComparator() {
+		return new Comparator<Pedestrian>() {
+			@Override
+			public int compare(Pedestrian p1, Pedestrian p2) {
+				return p1.compareUsingLinkLeftTime(p2);
+			}
+		};
 	}
 
 	public Pedestrian(PedestriansSimulator simulator, int id, Map.Intersection goal, double speed) {
@@ -110,5 +120,19 @@ abstract public class Pedestrian extends Item {
 				}
 			}
 		}
+	}
+
+	public boolean moveToNextPlace() {
+		return moveTo(nextPlace);
+	}
+
+	public int compareUsingLinkLeftTime(Pedestrian pedestrian) {
+		int result = Double.compare(linkLeftTime, pedestrian.linkLeftTime);
+		if (result == 0) result = Integer.compare(id, pedestrian.id);
+		return result;
+	}
+
+	protected double calcLinkLeftTime() {
+		return (place.street.getLength() - place.position) / speed;
 	}
 }

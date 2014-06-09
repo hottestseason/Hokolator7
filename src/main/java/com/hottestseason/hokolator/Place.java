@@ -11,6 +11,16 @@ public class Place {
 	}
 
 	@Override
+	public boolean equals(Object object) {
+		if (object instanceof Place) {
+			Place place = (Place) object;
+			return street.equals(place.street) && position == place.position;
+		} else {
+			return false;
+		}
+	}
+
+	@Override
 	public String toString() {
 		return street + " (" + position + ")";
 	}

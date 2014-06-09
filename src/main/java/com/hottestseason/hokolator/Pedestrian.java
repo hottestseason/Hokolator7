@@ -7,17 +7,18 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.hottestseason.hokolator.concurrent.Item;
+import com.hottestseason.hokolator.simulator.PedestriansSimulator;
 import com.hottestseason.hokolator.util.Counter;
 
-public class Pedestrian extends Item {
+abstract public class Pedestrian extends Item {
 	public final PedestriansSimulator simulator;
 	public final int id;
 	public final Map.Intersection goal;
-	private final Counter iteration = new Counter();
-	private boolean goaled = false;
-	private double speed;
-	private Place place;
-	private Place nextPlace;
+	protected final Counter iteration = new Counter();
+	protected boolean goaled = false;
+	protected double speed;
+	protected Place place;
+	protected Place nextPlace;
 
 	public static List<Pedestrian> sort(Collection<Pedestrian> pedestrians, Comparator<Pedestrian> comparator) {
 		List<Pedestrian> sortedPedestrians = new ArrayList<>(pedestrians);
@@ -44,17 +45,6 @@ public class Pedestrian extends Item {
 	@Override
 	public String toString() {
 		return "id: " + id + ", place: " + place + ", speed: " + speed;
-	}
-
-	@Override
-	public void run() {
-		if (!goaled) {
-			iteration.increment();
-			speed = calcSpeed();
-			nextPlace = calcNextPlace(simulator.timeunit);
-			moveTo(nextPlace);
-			if (goaled) simulator.finishedCounter.increment();
-		}
 	}
 
 	public int getIteration() {
@@ -111,6 +101,7 @@ public class Pedestrian extends Item {
 					if (place.street.getTarget() == goal) {
 						goaled = true;
 						place.street.remove(this);
+						simulator.finishedCounter.increment();
 					}
 					return true;
 				} else {

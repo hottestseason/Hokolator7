@@ -17,6 +17,7 @@ import com.hottestseason.hokolator.BlockingPedestrian;
 import com.hottestseason.hokolator.Map;
 import com.hottestseason.hokolator.Map.Intersection;
 import com.hottestseason.hokolator.Map.Street;
+import com.hottestseason.hokolator.NonblockingPedestrian;
 import com.hottestseason.hokolator.ParallelPedestrian;
 import com.hottestseason.hokolator.Pedestrian;
 import com.hottestseason.hokolator.Place;
@@ -87,6 +88,8 @@ abstract public class PedestriansSimulator {
 			return new BarrierAllPedestriansSimulator(map);
 		case "blocking":
 			return new BlockingPedestriansSimulator(map);
+		case "nonblocking":
+			return new NonblockingPedestriansSimulator(map);
 		default:
 			return null;
 		}
@@ -100,6 +103,8 @@ abstract public class PedestriansSimulator {
 			return new BarrierAllPedestrian(simulator, id, goal, speed);
 		case "blocking":
 			return new BlockingPedestrian(simulator, id, goal, speed);
+		case "nonblocking":
+			return new NonblockingPedestrian(simulator, id, goal, speed);
 		default:
 			return null;
 		}

@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.hottestseason.hokolator.concurrent.Item;
 import com.hottestseason.hokolator.simulator.PedestriansSimulator;
@@ -134,5 +136,25 @@ abstract public class Pedestrian extends Item {
 
 	protected double calcLinkLeftTime() {
 		return (place.street.getLength() - place.position) / speed;
+	}
+
+	protected boolean willEnterOrExit(Map.Street street) {
+		return (place.street != nextPlace.street) && (place.street == street || nextPlace.street == street);
+	}
+
+	protected Set<Pedestrian> calcNeighborPedestrians() {
+		Set<Pedestrian> neighborPedestrians = new HashSet<>(place.street.getNeighborPedestrians());
+		neighborPedestrians.addAll(nextPlace.street.getNeighborPedestrians());
+		return neighborPedestrians;
+	}
+
+	protected Set<Pedestrian> calcConflictingPedestrians(Set<Pedestrian> neighborPedestrians) {
+		Set<Pedestrian>  conflictingPedestrians = new HashSet<>();
+		for (Pedestrian pedestrian : neighborPedestrians) {
+			if (pedestrian.willEnterOrExit(place.street) || pedestrian.willEnterOrExit(nextPlace.street)) {
+				conflictingPedestrians.add(pedestrian);
+			}
+		}
+		return conflictingPedestrians;
 	}
 }

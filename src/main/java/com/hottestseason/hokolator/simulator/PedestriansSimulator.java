@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.hottestseason.hokolator.BarrierAllPedestrian;
+import com.hottestseason.hokolator.BlockingPedestrian;
 import com.hottestseason.hokolator.Map;
 import com.hottestseason.hokolator.Map.Intersection;
 import com.hottestseason.hokolator.Map.Street;
@@ -84,6 +85,8 @@ abstract public class PedestriansSimulator {
 			return new ParallelPedestriansSimulator(map);
 		case "barrierAll":
 			return new BarrierAllPedestriansSimulator(map);
+		case "blocking":
+			return new BlockingPedestriansSimulator(map);
 		default:
 			return null;
 		}
@@ -95,6 +98,8 @@ abstract public class PedestriansSimulator {
 			return new ParallelPedestrian(simulator, id, goal, speed);
 		case "barrierAll":
 			return new BarrierAllPedestrian(simulator, id, goal, speed);
+		case "blocking":
+			return new BlockingPedestrian(simulator, id, goal, speed);
 		default:
 			return null;
 		}
